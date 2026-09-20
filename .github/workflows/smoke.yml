@@ -1,0 +1,56 @@
+name: Install smoke test
+
+# Installs the published package from npm and drives it over stdio, the way the README
+# tells a user to. Catches the class of bug where the code is fine but the instructions,
+# the packaging, or a platform are not.
+#
+# Runs weekly as well as on push, because this can break without anyone touching the repo:
+# a new npm, a new Node, a dependency that stops shipping a prebuilt binary.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  install:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # 20 is the floor the README claims. Nobody had ever tested it.
+        node: [20, 22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # The test harness needs the MCP client SDK. The package under test comes from npm.
+      - run: npm ci
+
+      - name: Install from npm, as the README says
+        run: npm install -g @guylouis/keycard-shell-mcp
+
+      # The README tells users to run this when the server sees no USB device. If a global
+      # install needs it too, that is a documentation bug worth surfacing.
+      - name: Allow the native dependencies to unpack
+        continue-on-error: true
+        run: npm approve-scripts node-hid usb --global && npm rebuild node-hid usb --global
+
+      - name: The README's own check that the install worked
+        run: keycard-shell-mcp --help
+
+      - run: keycard-shell-mcp --version
+
+      - name: Talk to the installed server over stdio
+        shell: bash
+        run: node scripts/smoke.mjs "$(command -v keycard-shell-mcp)"

@@ -1,0 +1,70 @@
+name: Release
+
+# Publishes to npm when a version tag is pushed.
+#
+# There is no npm token anywhere: not in this repository's secrets, and not on any
+# machine. Authentication uses OIDC trusted publishing, which npm verifies against the
+# workflow identity. That also produces a provenance attestation, so anyone can check the
+# published bytes came from this repository and this commit.
+#
+# Requires a trusted publisher to be configured on npmjs.com for the package, pointing at
+# this repository and this workflow file, with direct publishing left disabled.
+#
+# The release is staged, not published. Approve it at npmjs.com under Staged Packages,
+# or with: npm stage list  then  npm stage approve <stage-id>
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Node 22 ships npm 10, which predates OIDC trusted publishing.
+      - name: Use an npm that supports trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Refuse a tag that disagrees with package.json
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag is $TAG but package.json says $PKG. Nothing published."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      # node-hid and usb ship prebuilt binaries that npm no longer unpacks on its own.
+      # Named explicitly rather than allowing every dependency to run install scripts.
+      - name: Allow the two native dependencies to unpack
+        run: npm approve-scripts node-hid usb && npm rebuild node-hid usb
+
+      # Compile and test as separate, visible steps. A previous run reported a
+      # successful build and then found nothing to test, which a single combined
+      # step could not explain.
+      - name: Compile
+        run: npx tsc
+
+      - name: Test
+        run: node --test dist/test/*.test.js
+
+      # The trusted publisher is allowed to stage, not to publish directly. Staging
+      # uploads the package and defers the 2FA proof to a human, who approves it at
+      # npmjs.com. A compromised workflow therefore cannot reach users on its own.
+      - name: Stage the release for approval
+        run: npm stage publish --provenance --access public

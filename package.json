@@ -1,0 +1,62 @@
+{
+  "name": "@guylouis/keycard-shell-mcp",
+  "version": "0.1.2",
+  "description": "MCP server that makes a Keycard Shell the signer for your AI agent. The agent proposes transactions; only the device, and the person holding it, can sign them.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "keycard-shell-mcp": "dist/src/index.js"
+  },
+  "files": [
+    "dist/src",
+    "README.md",
+    "AGENTS.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test dist/test/*.test.js",
+    "start": "node dist/src/index.js",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {
+    "@choppu/shelljs": "^1.0.1",
+    "@choppu/shelljs-node-hid": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ethers": "^6.13.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "allowScripts": {
+    "node-hid@2.2.0": true,
+    "usb@2.18.0": true
+  },
+  "keywords": [
+    "mcp",
+    "keycard",
+    "keycard-shell",
+    "hardware-wallet",
+    "ethereum",
+    "signing",
+    "eip712",
+    "agent",
+    "usb-hid"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guylouis/keycard-shell-mcp.git"
+  },
+  "homepage": "https://github.com/guylouis/keycard-shell-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/guylouis/keycard-shell-mcp/issues"
+  },
+  "author": "Guy-Louis Grau"
+}
